@@ -1,39 +1,34 @@
-from html.parser import HTMLParser
+from gtts import gTTS
 import requests
-import subprocess
+import pygame
+import time
+import playsound
 
-class ForecastParser(HTMLParser):
-    encounteredTodaysForecast = False 
-    forecast = ""
+pygame.mixer.init()
 
-    def feed(self, feed):
-        self.forecast = ""
-        super().feed(feed)
-        return self.forecast
+# Set to True if you need Debugging Outputs!
+debugging: bool = True
 
-    def handle_starttag(self, startTag, attrs):
-        if startTag == "p" and attrs and attrs[0][1] == "navToTop":
-           encounteredTodaysForecast = False
-        elif startTag == "a":
-            encounteredTodaysForecast = False
 
-    def handle_data(self, data):
+def speak(text: str):
+    speakObj = gTTS(text=text, lang="de", slow=False)
+    speakObj.save("wetter.mp3")
+    pygame.mixer.music.load("wetter.mp3")
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy():
+        time.sleep(0.1)
 
-        if data.startswith("Vorhersage  - heute"):
-            self.encounteredTodaysForecast = True
-        elif data.startswith("Vorhersage  - morgen") or data.startswith("Vorhersage  - morgen"):
-            self.encounteredTodaysForecast = False
-        elif self.encounteredTodaysForecast and data and len(data) > 3:
-            self.forecast += data
-
-        
 try:
-    parser = ForecastParser()
-    url = "https://www.dwd.de/DE/wetter/vorhersage_aktuell/berlin_brandenburg/vhs_bbb_node.html"
-    headers = {'User-Agent': 'Wetteransage'}
-    result = requests.get(url, headers=headers)
-    forecast = parser.feed(result.text)
-    subprocess.call(f'espeak-ng -vde-DE "{forecast}"', shell=True)  
+    url = "https://www.wetter.com/wetter_aktuell/wettervorhersage/3_tagesvorhersage/deutschland/muenchen/DE0006515.html"
+    result = requests.get(url, timeout=5)
+    forecast = result.text
+    teil1 = forecast.split("""<div class="text--white beta palm-inline-block" id="rtw_temp">""")
+    teil2 = teil1[1].split("</div>")
+    print(teil2[0])
+    speak("In München sind es zurzeit " + teil2[0])
 
-except:
+
+except Exception as e:
+    if debugging:
+        print(e)
     print("Invalid URL or some error occured while making the GET request to the specified URL")
